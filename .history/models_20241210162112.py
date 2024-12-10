@@ -256,5 +256,8 @@ class DigitClassificationModel(Module):
                 self.optimizer.step()
 
             val_acc = dataset.get_validation_accuracy()
+            # Print progress if desired (you can remove this in final code)
+            # print(f"Epoch {epoch+1}, Validation Accuracy: {val_acc:.4f}")
+
             if val_acc >= target_val_acc:
                 break

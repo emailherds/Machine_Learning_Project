@@ -178,83 +178,60 @@ class DigitClassificationModel(Module):
     A model for handwritten digit classification using the MNIST dataset.
 
     Each handwritten digit is a 28x28 pixel grayscale image, which is flattened
-    into a 784-dimensional vector. Each entry is a float between 0 and 1.
+    into a 784-dimensional vector for the purposes of this model. Each entry in
+    the vector is a floating point number between 0 and 1.
 
-    The model should output a (batch_size x 10) tensor of scores (logits).
-    We will use cross_entropy as the loss, which requires integer class labels.
-    Since the dataset labels are given as one-hot vectors, we will convert them
-    to integer class indices before using cross_entropy.
+    The goal is to sort each digit into one of 10 classes (number 0 through 9).
 
-    Goal: achieve at least 97% on the test set.
+    (See RegressionModel for more information about the APIs of different
+    methods here. We recommend that you implement the RegressionModel before
+    working on this part of the project.)
     """
     def __init__(self):
+        # Initialize your model parameters here
         super().__init__()
-        input_size = 28 * 28  
-        h1 = 256
-        h2 = 128
-        h3 = 64
+        input_size = 28 * 28
         output_size = 10
+        "*** YOUR CODE HERE ***"
 
-        self.fc1 = Linear(input_size, h1)
-        self.fc2 = Linear(h1, h2)
-        self.fc3 = Linear(h2, h3)
-        self.fc4 = Linear(h3, output_size)
 
-        self.optimizer = optim.Adam(self.parameters(), lr=0.001)
 
     def run(self, x):
         """
         Runs the model for a batch of examples.
 
-        Input: x of shape (batch_size x 784)
-        Output: logits of shape (batch_size x 10)
+        Your model should predict a node with shape (batch_size x 10),
+        containing scores. Higher scores correspond to greater probability of
+        the image belonging to a particular class.
+
+        Inputs:
+            x: a tensor with shape (batch_size x 784)
+        Output:
+            A node with shape (batch_size x 10) containing predicted scores
+                (also called logits)
         """
-        x = relu(self.fc1(x))
-        x = relu(self.fc2(x))
-        x = relu(self.fc3(x))
-        x = self.fc4(x)
-        return x
+        """ YOUR CODE HERE """
+
 
     def get_loss(self, x, y):
         """
         Computes the loss for a batch of examples.
 
-        Inputs:
-            x: (batch_size x 784)
-            y: (batch_size x 10), one-hot vectors for correct classes
+        The correct labels y are represented as a tensor with shape
+        (batch_size x 10). Each row is a one-hot vector encoding the correct
+        digit class (0-9).
 
-        We must convert y from one-hot encoding to integer class indices
-        for cross_entropy.
+        Inputs:
+            x: a node with shape (batch_size x 784)
+            y: a node with shape (batch_size x 10)
+        Returns: a loss tensor
         """
-        logits = self.run(x)
-        targets = y.argmax(dim=1)
-        loss = cross_entropy(logits, targets)
-        return loss
+        """ YOUR CODE HERE """
+
+        
 
     def train(self, dataset):
         """
         Trains the model.
-
-        We'll:
-        1. Create a DataLoader to iterate over the training data in batches.
-        2. Run several epochs, each epoch going through all training batches.
-        3. After each epoch, check validation accuracy.
-        4. Stop early if validation accuracy surpasses a chosen threshold.
         """
-        dataloader = DataLoader(dataset, batch_size=64, shuffle=True)
-
-        target_val_acc = 0.98
-        max_epochs = 30  
-
-        for epoch in range(max_epochs):
-            for batch in dataloader:
-                x, y = batch['x'], batch['label']
-
-                self.optimizer.zero_grad()
-                loss = self.get_loss(x, y)
-                loss.backward()
-                self.optimizer.step()
-
-            val_acc = dataset.get_validation_accuracy()
-            if val_acc >= target_val_acc:
-                break
+        """ YOUR CODE HERE """

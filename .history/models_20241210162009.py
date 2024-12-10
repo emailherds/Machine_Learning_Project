@@ -189,17 +189,22 @@ class DigitClassificationModel(Module):
     """
     def __init__(self):
         super().__init__()
-        input_size = 28 * 28  
+        input_size = 28 * 28  # 784
+        # We choose a few hidden layers. Adjust these if needed.
+        # Suggested hidden sizes: between 100 and 500
         h1 = 256
         h2 = 128
         h3 = 64
         output_size = 10
 
+        # Define the layers
         self.fc1 = Linear(input_size, h1)
         self.fc2 = Linear(h1, h2)
         self.fc3 = Linear(h2, h3)
         self.fc4 = Linear(h3, output_size)
 
+        # Define an optimizer
+        # Learning rate can be tuned; recommended between 0.0001 and 0.01.
         self.optimizer = optim.Adam(self.parameters(), lr=0.001)
 
     def run(self, x):
@@ -209,9 +214,12 @@ class DigitClassificationModel(Module):
         Input: x of shape (batch_size x 784)
         Output: logits of shape (batch_size x 10)
         """
+        # Forward pass:
+        # Apply ReLU after intermediate layers, but not after the last layer.
         x = relu(self.fc1(x))
         x = relu(self.fc2(x))
         x = relu(self.fc3(x))
+        # No relu on the last layer
         x = self.fc4(x)
         return x
 
@@ -227,6 +235,7 @@ class DigitClassificationModel(Module):
         for cross_entropy.
         """
         logits = self.run(x)
+        # Convert one-hot to class indices
         targets = y.argmax(dim=1)
         loss = cross_entropy(logits, targets)
         return loss
@@ -241,12 +250,17 @@ class DigitClassificationModel(Module):
         3. After each epoch, check validation accuracy.
         4. Stop early if validation accuracy surpasses a chosen threshold.
         """
+        # You can choose the batch size. Between 1 and 128 is recommended.
+        # Let's try 64.
         dataloader = DataLoader(dataset, batch_size=64, shuffle=True)
 
+        # We set a target validation accuracy threshold.
+        # Instructions say we need at least 97% on test; let's aim for ~98% val.
         target_val_acc = 0.98
-        max_epochs = 30  
+        max_epochs = 30  # Should achieve good accuracy well before this.
 
         for epoch in range(max_epochs):
+            # Training loop
             for batch in dataloader:
                 x, y = batch['x'], batch['label']
 
@@ -255,6 +269,11 @@ class DigitClassificationModel(Module):
                 loss.backward()
                 self.optimizer.step()
 
+            # Check validation accuracy after each epoch
             val_acc = dataset.get_validation_accuracy()
+            # Print progress if desired (you can remove this in final code)
+            # print(f"Epoch {epoch+1}, Validation Accuracy: {val_acc:.4f}")
+
             if val_acc >= target_val_acc:
+                # Stop early once we have a sufficiently high validation accuracy
                 break

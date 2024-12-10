@@ -173,88 +173,71 @@ class RegressionModel(Module):
             if epoch_loss < 0.02:
                 break
 
+
 class DigitClassificationModel(Module):
     """
     A model for handwritten digit classification using the MNIST dataset.
 
-    Each handwritten digit is a 28x28 pixel grayscale image, which is flattened
-    into a 784-dimensional vector. Each entry is a float between 0 and 1.
-
-    The model should output a (batch_size x 10) tensor of scores (logits).
-    We will use cross_entropy as the loss, which requires integer class labels.
-    Since the dataset labels are given as one-hot vectors, we will convert them
-    to integer class indices before using cross_entropy.
-
-    Goal: achieve at least 97% on the test set.
+    We map the 784-dimensional input (28*28) into 10 outputs (digits 0-9).
+    We'll use a simple feedforward neural network:
+    Input (784) -> Hidden (256 units, relu) -> Output (10)
     """
     def __init__(self):
         super().__init__()
-        input_size = 28 * 28  
-        h1 = 256
-        h2 = 128
-        h3 = 64
+        input_size = 28 * 28
+        hidden_size = 256
         output_size = 10
+        
+        # Define layers
+        self.fc1 = Linear(input_size, hidden_size)
+        self.fc2 = Linear(hidden_size, output_size)
 
-        self.fc1 = Linear(input_size, h1)
-        self.fc2 = Linear(h1, h2)
-        self.fc3 = Linear(h2, h3)
-        self.fc4 = Linear(h3, output_size)
-
+        # Define optimizer
         self.optimizer = optim.Adam(self.parameters(), lr=0.001)
 
     def run(self, x):
         """
-        Runs the model for a batch of examples.
+        Forward pass through the model.
 
-        Input: x of shape (batch_size x 784)
-        Output: logits of shape (batch_size x 10)
+        Input: x of shape (batch_size, 784)
+        Output: logits of shape (batch_size, 10)
         """
-        x = relu(self.fc1(x))
-        x = relu(self.fc2(x))
-        x = relu(self.fc3(x))
-        x = self.fc4(x)
-        return x
+        h = relu(self.fc1(x))
+        logits = self.fc2(h)  # No activation on output layer (logits)
+        return logits
 
     def get_loss(self, x, y):
         """
-        Computes the loss for a batch of examples.
+        Compute cross entropy loss.
 
-        Inputs:
-            x: (batch_size x 784)
-            y: (batch_size x 10), one-hot vectors for correct classes
-
-        We must convert y from one-hot encoding to integer class indices
-        for cross_entropy.
+        y is one-hot encoded of shape (batch_size, 10).
+        Convert y to class indices and then compute cross entropy loss.
         """
         logits = self.run(x)
-        targets = y.argmax(dim=1)
+        targets = y.argmax(dim=1)  # Convert one-hot vectors to class indices
         loss = cross_entropy(logits, targets)
         return loss
 
     def train(self, dataset):
         """
-        Trains the model.
-
-        We'll:
-        1. Create a DataLoader to iterate over the training data in batches.
-        2. Run several epochs, each epoch going through all training batches.
-        3. After each epoch, check validation accuracy.
-        4. Stop early if validation accuracy surpasses a chosen threshold.
+        Train the model until we reach a high validation accuracy or hit a max number of epochs.
         """
         dataloader = DataLoader(dataset, batch_size=64, shuffle=True)
 
-        target_val_acc = 0.98
-        max_epochs = 30  
+        # Set a validation accuracy goal
+        target_val_accuracy = 0.975
+        max_epochs = 30
 
         for epoch in range(max_epochs):
             for batch in dataloader:
                 x, y = batch['x'], batch['label']
-
+                
                 self.optimizer.zero_grad()
                 loss = self.get_loss(x, y)
                 loss.backward()
                 self.optimizer.step()
 
-            val_acc = dataset.get_validation_accuracy()
-            if val_acc >= target_val_acc:
+            # Check validation accuracy
+            val_accuracy = dataset.get_validation_accuracy(self)
+            if val_accuracy > target_val_accuracy:
                 break

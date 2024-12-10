@@ -173,88 +173,138 @@ class RegressionModel(Module):
             if epoch_loss < 0.02:
                 break
 
-class DigitClassificationModel(Module):
+
+import nn
+from torch import no_grad, stack
+from torch.utils.data import DataLoader
+from torch.nn import Module
+
+"""
+Functions you should use.
+Please avoid importing any other torch functions or modules.
+Your code will not pass if the gradescope autograder detects any changed imports
+"""
+from torch.nn import Parameter, Linear
+from torch import optim, tensor, tensordot, empty, ones
+from torch.nn.functional import cross_entropy, relu, mse_loss
+from torch import movedim
+
+class DigitClassificationModel(object):
     """
     A model for handwritten digit classification using the MNIST dataset.
 
     Each handwritten digit is a 28x28 pixel grayscale image, which is flattened
-    into a 784-dimensional vector. Each entry is a float between 0 and 1.
+    into a 784-dimensional vector for the purposes of this model. Each entry in
+    the vector is a floating point number between 0 and 1.
 
-    The model should output a (batch_size x 10) tensor of scores (logits).
-    We will use cross_entropy as the loss, which requires integer class labels.
-    Since the dataset labels are given as one-hot vectors, we will convert them
-    to integer class indices before using cross_entropy.
+    The goal is to sort each digit into one of 10 classes (number 0 through 9).
 
-    Goal: achieve at least 97% on the test set.
+    (See RegressionModel for more information about the APIs of different
+    methods here. We recommend that you implement the RegressionModel before
+    working on this part of the project.)
     """
     def __init__(self):
-        super().__init__()
-        input_size = 28 * 28  
-        h1 = 256
-        h2 = 128
-        h3 = 64
-        output_size = 10
-
-        self.fc1 = Linear(input_size, h1)
-        self.fc2 = Linear(h1, h2)
-        self.fc3 = Linear(h2, h3)
-        self.fc4 = Linear(h3, output_size)
-
-        self.optimizer = optim.Adam(self.parameters(), lr=0.001)
+        # Initialize your model parameters here
+        self.lr = 0.01  # Learning rate
+        self.w1 = Parameter(784, 256)
+        self.b1 = Parameter(1, 256)
+        self.w2 = Parameter(256, 128)
+        self.b2 = Parameter(1, 128)
+        self.w3 = Parameter(128, 64)
+        self.b3 = Parameter(1, 64)
+        self.w4 = Parameter(64, 10)
+        self.b4 = Parameter(1, 10)
+        self.params = [self.w1, self.b1, self.w2, self.b2,
+                      self.w3, self.b3, self.w4, self.b4]
 
     def run(self, x):
         """
         Runs the model for a batch of examples.
 
-        Input: x of shape (batch_size x 784)
-        Output: logits of shape (batch_size x 10)
+        Your model should predict a node with shape (batch_size x 10),
+        containing scores. Higher scores correspond to greater probability of
+        the image belonging to a particular class.
+
+        Inputs:
+            x: a node with shape (batch_size x 784)
+        Output:
+            A node with shape (batch_size x 10) containing predicted scores
+                (also called logits)
         """
-        x = relu(self.fc1(x))
-        x = relu(self.fc2(x))
-        x = relu(self.fc3(x))
-        x = self.fc4(x)
-        return x
+        # First hidden layer: x @ w1 + b1
+        h1 = tensordot(x, self.w1, dims=1) + self.b1
+        h1 = relu(h1)
+        
+        # Second hidden layer: h1 @ w2 + b2
+        h2 = tensordot(h1, self.w2, dims=1) + self.b2
+        h2 = relu(h2)
+        
+        # Third hidden layer: h2 @ w3 + b3
+        h3 = tensordot(h2, self.w3, dims=1) + self.b3
+        h3 = relu(h3)
+        
+        # Output layer: h3 @ w4 + b4 (no activation)
+        logits = tensordot(h3, self.w4, dims=1) + self.b4
+        
+        return logits
 
     def get_loss(self, x, y):
         """
         Computes the loss for a batch of examples.
 
-        Inputs:
-            x: (batch_size x 784)
-            y: (batch_size x 10), one-hot vectors for correct classes
+        The correct labels `y` are represented as a node with shape
+        (batch_size x 10). Each row is a one-hot vector encoding the correct
+        digit class (0-9).
 
-        We must convert y from one-hot encoding to integer class indices
-        for cross_entropy.
+        Inputs:
+            x: a node with shape (batch_size x 784)
+            y: a node with shape (batch_size x 10)
+        Returns: a loss node
         """
-        logits = self.run(x)
+        y_hat = self.run(x)
+        # Convert one-hot labels to class indices
         targets = y.argmax(dim=1)
-        loss = cross_entropy(logits, targets)
+        # Compute cross-entropy loss
+        loss = cross_entropy(y_hat, targets)
         return loss
 
     def train(self, dataset):
         """
         Trains the model.
 
-        We'll:
-        1. Create a DataLoader to iterate over the training data in batches.
-        2. Run several epochs, each epoch going through all training batches.
-        3. After each epoch, check validation accuracy.
-        4. Stop early if validation accuracy surpasses a chosen threshold.
+        Inputs:
+            dataset: The training dataset which should provide a
+                     get_validation_accuracy(model) method.
         """
-        dataloader = DataLoader(dataset, batch_size=64, shuffle=True)
+        batch_size = 100
+        target_val_accuracy = 0.98  # 98% accuracy target
+        max_epochs = 30  # Maximum number of epochs to prevent infinite loops
 
-        target_val_acc = 0.98
-        max_epochs = 30  
-
-        for epoch in range(max_epochs):
-            for batch in dataloader:
+        epoch = 0
+        while epoch < max_epochs:
+            epoch += 1
+            epoch_loss = 0.0
+            for batch in dataset.iterate_once(batch_size):
                 x, y = batch['x'], batch['label']
-
-                self.optimizer.zero_grad()
+                
+                # Compute loss
                 loss = self.get_loss(x, y)
-                loss.backward()
-                self.optimizer.step()
-
-            val_acc = dataset.get_validation_accuracy()
-            if val_acc >= target_val_acc:
+                
+                # Compute gradients
+                grads = nn.gradients(loss, self.params)
+                
+                # Update parameters
+                for i in range(len(self.params)):
+                    self.params[i].update(grads[i], -self.lr)
+                
+                # Accumulate loss
+                epoch_loss += nn.as_scalar(loss)
+            
+            # After each epoch, check validation accuracy
+            valid_acc = dataset.get_validation_accuracy()
+            avg_loss = epoch_loss / dataset.num_examples
+            print(f"Epoch {epoch}, Loss: {avg_loss:.4f}, Validation Accuracy: {valid_acc * 100:.2f}%")
+            
+            if valid_acc >= target_val_accuracy:
+                print("Target validation accuracy reached. Stopping training.")
                 break

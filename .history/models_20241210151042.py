@@ -173,88 +173,88 @@ class RegressionModel(Module):
             if epoch_loss < 0.02:
                 break
 
+
 class DigitClassificationModel(Module):
     """
     A model for handwritten digit classification using the MNIST dataset.
-
-    Each handwritten digit is a 28x28 pixel grayscale image, which is flattened
-    into a 784-dimensional vector. Each entry is a float between 0 and 1.
-
-    The model should output a (batch_size x 10) tensor of scores (logits).
-    We will use cross_entropy as the loss, which requires integer class labels.
-    Since the dataset labels are given as one-hot vectors, we will convert them
-    to integer class indices before using cross_entropy.
-
-    Goal: achieve at least 97% on the test set.
+    Each 28x28 image (flattened to 784 features) should be classified into
+    one of 10 classes (digits 0 through 9).
     """
     def __init__(self):
         super().__init__()
-        input_size = 28 * 28  
-        h1 = 256
-        h2 = 128
-        h3 = 64
+        input_size = 28 * 28
         output_size = 10
 
-        self.fc1 = Linear(input_size, h1)
-        self.fc2 = Linear(h1, h2)
-        self.fc3 = Linear(h2, h3)
-        self.fc4 = Linear(h3, output_size)
+        # A simple neural network:
+        # Input (784) -> Hidden layer (e.g., 256 units with ReLU) -> Output (10)
+        self.layer1 = Linear(input_size, 256)
+        self.layer2 = Linear(256, output_size)
 
+        # Optimizer
         self.optimizer = optim.Adam(self.parameters(), lr=0.001)
 
     def run(self, x):
         """
-        Runs the model for a batch of examples.
+        Runs the model forward on a batch of inputs x.
 
-        Input: x of shape (batch_size x 784)
-        Output: logits of shape (batch_size x 10)
+        x: (batch_size x 784)
+        Returns: logits of shape (batch_size x 10)
         """
-        x = relu(self.fc1(x))
-        x = relu(self.fc2(x))
-        x = relu(self.fc3(x))
-        x = self.fc4(x)
-        return x
+        h = relu(self.layer1(x))
+        logits = self.layer2(h)
+        return logits
 
     def get_loss(self, x, y):
         """
-        Computes the loss for a batch of examples.
+        Computes the cross entropy loss for a batch of examples.
 
         Inputs:
-            x: (batch_size x 784)
-            y: (batch_size x 10), one-hot vectors for correct classes
+            x: (batch_size x 784) input images
+            y: (batch_size x 10) one-hot encoded labels
 
-        We must convert y from one-hot encoding to integer class indices
-        for cross_entropy.
+        Returns: a scalar loss tensor
         """
         logits = self.run(x)
-        targets = y.argmax(dim=1)
+
+        # Convert one-hot labels to class indices
+        targets = y.argmax(dim=1)  # shape: (batch_size)
         loss = cross_entropy(logits, targets)
         return loss
 
     def train(self, dataset):
         """
-        Trains the model.
+        Trains the model using the given dataset. We have access to:
+        
+        - dataset.get_validation_accuracy() to compute validation accuracy
+        - The dataset itself, which likely contains training samples accessible via a DataLoader
 
-        We'll:
-        1. Create a DataLoader to iterate over the training data in batches.
-        2. Run several epochs, each epoch going through all training batches.
-        3. After each epoch, check validation accuracy.
-        4. Stop early if validation accuracy surpasses a chosen threshold.
+        We'll train until we surpass a validation accuracy threshold, or hit a max number of epochs.
         """
+
         dataloader = DataLoader(dataset, batch_size=64, shuffle=True)
 
-        target_val_acc = 0.98
-        max_epochs = 30  
+        # Set a validation accuracy threshold slightly above 97% to ensure final test accuracy is also high.
+        # You can tweak this value if needed.
+        target_val_accuracy = 0.975
+        max_epochs = 30
 
         for epoch in range(max_epochs):
+            epoch_loss = 0.0
             for batch in dataloader:
                 x, y = batch['x'], batch['label']
-
+                
                 self.optimizer.zero_grad()
                 loss = self.get_loss(x, y)
                 loss.backward()
                 self.optimizer.step()
 
-            val_acc = dataset.get_validation_accuracy()
-            if val_acc >= target_val_acc:
+                epoch_loss += loss.item()
+
+            # Check validation accuracy after each epoch
+            val_accuracy = dataset.get_validation_accuracy(self)
+            # Print statements can help with debugging. 
+            # print(f"Epoch {epoch+1}, Loss: {epoch_loss:.4f}, Validation Accuracy: {val_accuracy*100:.2f}%")
+
+            if val_accuracy > target_val_accuracy:
+                # Early stopping if we hit the desired validation accuracy
                 break
