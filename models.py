@@ -103,7 +103,10 @@ class RegressionModel(Module):
         # Initialize your model parameters here
         "*** YOUR CODE HERE ***"
         super().__init__()
-        
+        self.layer1 = Linear(1, 200)
+        self.layer2 = Linear(200, 400)
+        self.layer3 = Linear(400, 1)
+        self.optimizer = optim.Adam(self.parameters(), lr=0.001)
 
 
     def forward(self, x):
@@ -116,7 +119,10 @@ class RegressionModel(Module):
             A node with shape (batch_size x 1) containing predicted y-values
         """
         "*** YOUR CODE HERE ***"
-
+        h1 = relu(self.layer1(x))
+        h2 = relu(self.layer2(h1))
+        h3 = self.layer3(h2)
+        return h3
     
     def get_loss(self, x, y):
         """
@@ -129,7 +135,8 @@ class RegressionModel(Module):
         Returns: a tensor of size 1 containing the loss
         """
         "*** YOUR CODE HERE ***"
- 
+        predictions = self.forward(x)
+        return mse_loss(predictions, y)
   
 
     def train(self, dataset):
@@ -147,7 +154,24 @@ class RegressionModel(Module):
             
         """
         "*** YOUR CODE HERE ***"
+        data = DataLoader(dataset, batch_size=64)
+       
+        for epoch in range(1000):
+            epoch_loss = 0.0
+            for batch in data:
+                x, y = batch['x'], batch['label'] 
 
+                self.optimizer.zero_grad()
+
+                loss = self.get_loss(x, y)
+
+                loss.backward()
+                self.optimizer.step()
+
+                epoch_loss += loss.item()
+
+            if epoch_loss < 0.02:
+                break
 
             
 
