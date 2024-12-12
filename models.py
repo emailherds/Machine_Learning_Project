@@ -235,9 +235,9 @@ class DigitClassificationModel(Module):
             y: a node with shape (batch_size x 10)
         Returns: a loss node
         """
+
         logits = self.run(x)
-        targets = y.argmax(dim=1)
-        loss = cross_entropy(logits, targets)
+        loss = cross_entropy(logits, y)
         return loss
 
     def train(self, dataset):
